@@ -3,14 +3,10 @@ import random
 
 sc = pygame.display.set_mode((800, 500))
 pygame.display.set_caption('Вкусно и точка')
-clock = pygame.time.Clock()
-stoli = ['stoli\glavni stol.png', 'stoli\table govna3.png']
 numbers = ['1.gif', '2.png', '3.png', '4.png', '5.png']
 x = 200
 y = 100
-fat = 10
 FPS = 30
-pos = (x, y, fat, fat)
 game = True
 color = (0, 255, 0)
 pygame.init()
@@ -24,6 +20,7 @@ def print_text(message, x, y, font_color=(0, 0, 0), font_type='font.ttf', font_s
 
 
 def show_menu():
+    global show
     mune = pygame.image.load('fon.png')
     level1 = Button(300, 70)
     level2 = Button(300, 70)
@@ -39,14 +36,16 @@ def show_menu():
         sc.blit(mune, (0, 0))
 
         print_text('Добро пожаловать на сервер безумные зомби', 200, 100)
-        level1.draw(250, 150, '1 lvl', None, 50)
+        level1.draw(250, 150, '1 lvl', start_game1, 50)
         level2.draw(250, 350, '2 lvl', None, 50)
         pygame.display.update()
 
-
-def start_game():
+def start_game1():
     # эта функция будет запускать игру после фона
-    pass
+    global show
+    print_text('start lvl1', 200, 100)
+    show = False
+
 
 
 class Button:
@@ -78,7 +77,7 @@ class Button:
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, img='begun.png'):
+    def __init__(self, x, y, img='monkey.png'):
         super().__init__()
         self.image = pygame.image.load(img).convert_alpha()
         self.rect = self.image.get_rect()
@@ -88,6 +87,8 @@ class Player(pygame.sprite.Sprite):
         self.change_x = 0
         self.change_y = 0
         self.zakaz = None
+        self.rect.x = x
+        self.rect.y = y
 
 
     def update(self):
@@ -106,9 +107,10 @@ class Player(pygame.sprite.Sprite):
             else:
                 self.rect.top = i.rect.bottom
         # проверим соприкосновение с заказом
-        zakaz = pygame.sprite.spritecollide(self, self.zakaz, False)
-        if pygame.sprite.spritecollide(self, self.b, False):
-            self.alive = False
+
+    def proverka_zakaza(self):
+        pass
+
 
 
 
@@ -121,7 +123,7 @@ class Gstol(pygame.sprite.Sprite):
         self.rect.y = y
 
 class DefaultStol(pygame.sprite.Sprite):
-    def __init__(self, x, y, img='table govna3.png'):
+    def __init__(self, x, y, img='stol.png'):
         super().__init__()
         self.image = pygame.image.load(img).convert_alpha()
         self.rect = self.image.get_rect()
@@ -135,18 +137,25 @@ class Babka(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
         self.start = x
-        self.stop = x + random.randint(180, 240)
+        self.stop = x + random.randint(70, 100)
         self.direction = 1
+        self.sleep = 0
 
     def update(self):
-        if self.rect.x >= self.x:
-            self.rect.x = self.stop
-            self.direction = -1
+        if self.sleep > 0:
+            self.sleep -= 1
+        else:
+            if self.rect.x >= self.stop:
+                self.rect.x = self.stop
+                self.direction = -1
 
-        if self.rect.x <= self.start:
-            self.rect.x = self.start
-            self.direction = 1
-        self.rect.x += self.direction * 2
+            if self.rect.x <= self.start:
+                self.rect.x = self.start
+                self.direction = 1
+            self.rect.x += self.direction * 2
+            # 10 - Как часто, 100 - это сколько стоять
+            if random.randint(0, 1000) < 10:
+                self.sleep = 100
 
 
 
@@ -176,10 +185,21 @@ class Zakaz(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
+        self.visible = False
+        self.timer = 0
 
-    def random(self):
-        # бабка может задуматься о жизни в любой момент и остановится
-        pass
+    def update(self):
+        if self.timer > 0:
+            self.timer -= 1
+            # украл вещь
+            if self.timer == 0:
+                pass
+        else:
+            pass
+
+
+
+
 
 
 all_sprite = pygame.sprite.Group()
@@ -187,9 +207,9 @@ stol_list = pygame.sprite.Group()
 
 
 stol_coords = [
-    [400, 200],
-    [300, 100],
-    [200, 150]
+    [400, 300],
+    [350, 100],
+    [150, 100]
 ]
 
 for coord in stol_coords:
@@ -198,17 +218,28 @@ for coord in stol_coords:
     all_sprite.add(stol)
 
 Gstol_list = pygame.sprite.Group()
-gstol = Gstol(600, 150)
+gstol = Gstol(450, 150)
 Gstol_list.add(gstol)
 all_sprite.add(gstol)
 player = Player(100, 100)
+# proverka stolov
+player.stol = stol_list
+all_sprite.add(player)
+#babka
+babka = Babka(600, 150)
+babka_list = pygame.sprite.Group()
+babka_list.add(babka)
+all_sprite.add(babka)
+
 
 
 font = pygame.font.SysFont('Arial', 100, True)
-text = font.render('GAME OVER', True, WHITE)
+text1 = font.render('GAME OVER', True, (0, 0, 0))
+text2 = font.render('Заказ украден', True, (0, 0, 0))
+clock = pygame.time.Clock()
 
 
-
+show_menu()
 
 
 while game:
@@ -217,17 +248,35 @@ while game:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             game = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_a:
+                player.change_x = -10
+            elif event.key == pygame.K_d:
+                player.change_x = 10
+            elif event.key == pygame.K_w:
+                player.change_y = -10
+            elif event.key == pygame.K_s:
+                player.change_y = 10
 
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_d]:
-        x += 10
-    if keys[pygame.K_w]:
-        y -= 10
-    if keys[pygame.K_s]:
-        y += 10
-    if keys[pygame.K_a]:
-        x -= 10
+        elif event.type == pygame.KEYUP:
+            if event.key == pygame.K_a:
+                player.change_x = 0
+            elif event.key == pygame.K_d:
+                player.change_x = 0
+            elif event.key == pygame.K_w:
+                player.change_y = 0
+            elif event.key == pygame.K_s:
+                player.change_y = 0
+
     sc.fill((0, 0, 0))
+    if not player.alive:
+        sc.blit(text1, (250, 100))
+    else:
+        all_sprite.update()
+        all_sprite.draw(sc)
+
     pygame.display.flip()
+    clock.tick(60)
+
 
 pygame.quit()
