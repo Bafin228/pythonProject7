@@ -36,8 +36,7 @@ def show_menu():
         sc.blit(mune, (0, 0))
 
         print_text('Добро пожаловать на сервер безумные зомби', 200, 100)
-        level1.draw(250, 150, '1 lvl', start_game1, 50)
-        level2.draw(250, 350, '2 lvl', None, 50)
+        level1.draw(250, 150, 'ИГРАТЬ', start_game1, 50)
         pygame.display.update()
 
 def start_game1():
@@ -84,29 +83,38 @@ class Player(pygame.sprite.Sprite):
         self.alive = True
         self.b = pygame.sprite.Group()
         self.stol = None
+        self.gstol = None
         self.change_x = 0
         self.change_y = 0
         self.zakaz = None
         self.rect.x = x
         self.rect.y = y
+        self.do_take = False
 
 
     def update(self):
         # проверим врезается ли в стены или в ченибудь игрок
+        if self.do_take:
+            zakaz.take -= 1
+            print(zakaz.take)
         self.rect.x += self.change_x
         self.rect.y += self.change_y
         stol_false = pygame.sprite.spritecollide(self, self.stol, False)
-        for i in stol_false:
-            if self.change_x > 0:
-                self.rect.right = i.rect.left
-            else:
-                self.rect.left = i.rect.right
-        for i in stol_false:
-            if self.change_y > 0:
-                self.rect.bottom = i.rect.top
-            else:
-                self.rect.top = i.rect.bottom
-        # проверим соприкосновение с заказом
+        if stol_false:
+            self.rect.x -= self.change_x
+            self.rect.y -= self.change_y
+            return
+        stol_false = pygame.sprite.spritecollide(self, gstol_list, False)
+        if stol_false:
+            # я и бабка возле стола
+            if pygame.sprite.spritecollide(babka, gstol_list, False):
+                self.alive = False
+            self.rect.x -= self.change_x
+            self.rect.y -= self.change_y
+            if zakaz.visible == 0:
+                if zakaz.take > 0:
+                    self.do_take = True
+            return
 
     def proverka_zakaza(self):
         pass
@@ -121,6 +129,7 @@ class Gstol(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
+        self.x = x
 
 class DefaultStol(pygame.sprite.Sprite):
     def __init__(self, x, y, img='stol.png'):
@@ -138,8 +147,12 @@ class Babka(pygame.sprite.Sprite):
         self.rect.y = y
         self.start = x
         self.stop = x + random.randint(70, 100)
-        self.direction = 1
+        self.directionx = 1
+        self.directiony = 1
         self.sleep = 0
+        self.starty = y
+        self.stopy = y + random.randint(200, 300)
+        self.w = 0
 
     def update(self):
         if self.sleep > 0:
@@ -147,27 +160,58 @@ class Babka(pygame.sprite.Sprite):
         else:
             if self.rect.x >= self.stop:
                 self.rect.x = self.stop
-                self.direction = -1
+                self.directionx = -1
 
             if self.rect.x <= self.start:
                 self.rect.x = self.start
-                self.direction = 1
-            self.rect.x += self.direction * 2
+                self.directionx = 1
+            self.rect.x += self.directionx * 2
             # 10 - Как часто, 100 - это сколько стоять
-            if random.randint(0, 1000) < 10:
-                self.sleep = 100
+        if random.randint(0, 1000) < 10:
+            self.sleep = 100
 
 
 
 class Terpila(pygame.sprite.Sprite):
-    def __init__(self, x, y, img='terpila'):
+    def __init__(self, x, y, img='terpila.png'):
         super().__init__()
         self.image = pygame.image.load(img).convert_alpha()
         self.rect = self.image.get_rect()
-        self.rect.x = x
-        self.rect.y = y
-        self.start = x
-        self.stop = x + 300
+        self.rect.x = x * -1
+        self.rect.y = y * -1
+        self.visible = False
+        self.visible_cnt = 0
+
+    def show(self):
+        self.visible_cnt = random.randint(60, 180)
+
+    def update(self):
+        if self.visible_cnt > 0:
+            self.visible_cnt -= 1
+            if self.visible_cnt <= 0:
+                self.visible_cnt = 0
+                self.visible = True
+                self.rect.x = self.rect.x * -1
+                self.rect.y = self.rect.y * -1
+        if self.visible == True:
+            if self.rect.y < 100:
+                self.rect.y += 1
+            elif self.rect.y > 100:
+                self.rect.y -= 1
+            elif self.rect.x < 400:
+                self.rect.x += 1
+            elif self.rect.x > 400:
+                self.rect.x -= 1
+            else:
+                self.visible = False
+                self.rect.x = 350 * -1
+                self.rect.y = 350 * -1
+                zakaz.hide()
+
+
+
+
+
 
 
 class Televisor(pygame.sprite.Sprite):
@@ -179,24 +223,27 @@ class Televisor(pygame.sprite.Sprite):
         self.rect.y = y
 
 class Zakaz(pygame.sprite.Sprite):
-    def __init__(self, x, y, img='eda'):
+    def __init__(self, x, y, img='eda.png'):
         super().__init__()
         self.image = pygame.image.load(img).convert_alpha()
         self.rect = self.image.get_rect()
-        self.rect.x = x
-        self.rect.y = y
-        self.visible = False
-        self.timer = 0
+        self.rect.x = x * -1
+        self.rect.y = y * -1
+        self.visible = random.randint(100, 500)
+        self.take = 150
 
     def update(self):
-        if self.timer > 0:
-            self.timer -= 1
-            # украл вещь
-            if self.timer == 0:
-                pass
-        else:
-            pass
+        if self.visible > 0:
+            self.visible -= 1
+            if self.visible <= 0:
+                self.rect.x = self.rect.x * -1
+                self.rect.y = self.rect.y * -1
+                terpila.show()
 
+    def hide(self):
+        self.rect.x = self.rect.x * -1
+        self.rect.y = self.rect.y * -1
+        self.visible = random.randint(100, 500)
 
 
 
@@ -219,24 +266,27 @@ for coord in stol_coords:
 
 Gstol_list = pygame.sprite.Group()
 gstol = Gstol(450, 150)
-Gstol_list.add(gstol)
+zakaz = Zakaz(500, 150)
+all_sprite.add(zakaz)
 all_sprite.add(gstol)
-player = Player(100, 100)
+player = Player(50, 150)
 # proverka stolov
 player.stol = stol_list
 all_sprite.add(player)
+gstol_list = pygame.sprite.Group()
+gstol_list.add(gstol)
+
 #babka
 babka = Babka(600, 150)
-babka_list = pygame.sprite.Group()
-babka_list.add(babka)
 all_sprite.add(babka)
-
-
-
+terpila = Terpila(350, 350)
+all_sprite.add(terpila)
 font = pygame.font.SysFont('Arial', 100, True)
 text1 = font.render('GAME OVER', True, (0, 0, 0))
 text2 = font.render('Заказ украден', True, (0, 0, 0))
 clock = pygame.time.Clock()
+pygame.mixer.music.play(-1)
+s = 0
 
 
 show_menu()
@@ -267,6 +317,16 @@ while game:
                 player.change_y = 0
             elif event.key == pygame.K_s:
                 player.change_y = 0
+        if show == False:
+            if s == 0:
+                pygame.mixer.music.pause()
+                pygame.mixer.music.load('fon.mp3')
+                pygame.mixer.music.unpause()
+                pygame.mixer.music.play(-1)
+                s += 1
+                pygame.display.update()
+            mune1 = pygame.image.load('fon1.png')
+            sc.blit(mune1, (0, 0))
 
     sc.fill((0, 0, 0))
     if not player.alive:
