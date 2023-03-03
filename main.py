@@ -310,6 +310,10 @@ while game:
     if not player.alive:
         sc.blit(text1, (250, 100))
         pygame.mixer.music.pause()
+        pygame.mixer.music.load('music/gameover.mp3')
+        pygame.mixer.music.unpause()
+        pygame.mixer.music.play(-1)
+        pygame.display.update()
 
 
     else:
